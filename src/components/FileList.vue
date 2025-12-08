@@ -9,21 +9,54 @@
       </div>
       <div class="file-info">
         <div class="file-name">{{ file.name }}</div>
+        <div class="file-meta">
+          <span>{{ formatSize(file.size) }}</span>
+          <span class="status-text">{{ getStatusText(file.status) }}</span>
+          <span v-if="file.status === UploadStatus.UPLOADING && file.speed">
+            {{ formatSpeed(file.speed) }} · 剩余 {{ formatTime(file.remainingTime) }}
+          </span>
+        </div>
 
-        <div v-if="file.status === 'uploading'" class="file-progress">
+        <!-- MD5计算进度 -->
+        <div v-if="file.status === UploadStatus.HASHING" class="progress-wrapper">
+          <el-progress
+            :percentage="file.hashProgress"
+            :stroke-width="6"
+            :show-text="false"
+            status="warning"
+          />
+          <span class="progress-text">MD5: {{ file.hashProgress }}%</span>
+        </div>
+
+        <!-- <div v-else-if="isUploading(file.status)" class="file-progress">
           <div class="progress-bar">
             <div class="progress-fill" :style="{ width: file.progress + '%' }"></div>
           </div>
           <span class="progress-text">{{ file.progress }}%</span>
-        </div>
+        </div> -->
         <!-- 成功：显示文件大小 -->
-        <div v-else-if="file.status === 'success'" class="file-size">{{ file.size }}</div>
-        <div v-else-if="file.status === 'error'" class="file-error">上传失败，请重试</div>
+        <!-- <div v-else-if="file.status === 'success'" class="file-size">
+          {{ formatSize(file.size) }}
+        </div> -->
+        <!-- <div v-else-if="file.status === 'error'" class="file-error">上传失败，请重试</div> -->
+
+        <div
+          v-else-if="file.status === UploadStatus.UPLOADING || file.status === UploadStatus.PAUSED"
+          class="progress-wrapper"
+        >
+          <el-progress
+            :percentage="file.progress"
+            :stroke-width="6"
+            :show-text="false"
+            :status="file.status === UploadStatus.PAUSED ? 'warning' : undefined"
+          />
+          <span class="progress-text">{{ file.progress }}%</span>
+        </div>
       </div>
 
       <div class="file-actions">
         <!-- 上传中：取消按钮 -->
-        <button
+        <!-- <button
           v-if="file.status === 'uploading'"
           class="btn-cancel"
           title="取消"
@@ -33,10 +66,10 @@
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
-        </button>
+        </button> -->
 
         <!-- 成功：预览和删除 -->
-        <template v-else-if="file.status === 'success'">
+        <!-- <template v-else-if="file.status === 'success'">
           <button class="btn-preview" title="预览" @click="$emit('preview', file)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -51,9 +84,9 @@
               />
             </svg>
           </button>
-        </template>
+        </template> -->
         <!-- 失败：重试和删除 -->
-        <template v-else-if="file.status === 'error'">
+        <!-- <template v-else-if="file.status === 'error'">
           <button class="btn-retry" title="重试" @click="$emit('retry', file)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="23 4 23 10 17 10" />
@@ -68,6 +101,29 @@
               />
             </svg>
           </button>
+        </template> -->
+
+        <!-- 上传中：暂停/取消 -->
+        <template v-if="file.status === UploadStatus.UPLOADING">
+          <el-button size="small" @click="pause(file.id)">暂停</el-button>
+          <el-button size="small" type="danger" @click="cancel(file.id)">取消</el-button>
+        </template>
+
+        <!-- 暂停：继续/取消 -->
+        <template v-else-if="file.status === UploadStatus.PAUSED">
+          <el-button size="small" type="primary" @click="resume(file.id)">继续</el-button>
+          <el-button size="small" type="danger" @click="cancel(file.id)">取消</el-button>
+        </template>
+
+        <!-- 失败：重试/删除 -->
+        <template v-else-if="file.status === UploadStatus.ERROR">
+          <el-button size="small" type="warning" @click="retry(file.id)">重试</el-button>
+          <el-button size="small" type="danger" @click="cancel(file.id)">删除</el-button>
+        </template>
+
+        <!-- 成功：删除 -->
+        <template v-else-if="file.status === UploadStatus.SUCCESS">
+          <el-button size="small" type="danger" @click="cancel(file.id)">删除</el-button>
         </template>
       </div>
     </div>
@@ -75,6 +131,7 @@
 </template>
 
 <script setup lang="ts">
+import { UploadStatus, type UploadFileInfo } from '@/types/upload'
 export interface FileItem {
   id: string | number
   name: string
@@ -83,15 +140,79 @@ export interface FileItem {
   size?: string
   error?: string
 }
-defineProps<{
-  files: FileItem[]
+const props = defineProps<{
+  files: UploadFileInfo[]
 }>()
-defineEmits<{
-  cancel: [file: FileItem]
-  preview: [file: FileItem]
-  delete: [file: FileItem]
-  retry: [file: FileItem]
+const emit = defineEmits<{
+  cancel: [file: UploadFileInfo]
+  preview: [file: UploadFileInfo]
+  delete: [file: UploadFileInfo]
+  retry: [file: UploadFileInfo]
+  pause: [file: UploadFileInfo]
+  resume: [file: UploadFileInfo]
 }>()
+// 操作方法
+const pause = (fileId: string) => {
+  const file = props.files.find((f) => f.id === fileId)
+  if (file) emit('pause', file)
+}
+
+const resume = (fileId: string) => {
+  const file = props.files.find((f) => f.id === fileId)
+  if (file) emit('resume', file)
+}
+
+const cancel = (fileId: string) => {
+  const file = props.files.find((f) => f.id === fileId)
+  if (file) emit('cancel', file)
+}
+
+const retry = (fileId: string) => {
+  const file = props.files.find((f) => f.id === fileId)
+  if (file) emit('retry', file)
+}
+// 辅助函数
+const isUploading = (status: UploadStatus) =>
+  [
+    UploadStatus.UPLOADING,
+    UploadStatus.HASHING,
+    UploadStatus.CHECKING,
+    UploadStatus.MERGING,
+  ].includes(status)
+
+const formatSize = (bytes: number): string => {
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB'
+  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB'
+  return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
+}
+
+const getStatusText = (status: UploadStatus): string => {
+  const map: Record<UploadStatus, string> = {
+    [UploadStatus.PENDING]: '等待中',
+    [UploadStatus.HASHING]: '计算MD5',
+    [UploadStatus.CHECKING]: '秒传检测',
+    [UploadStatus.UPLOADING]: '上传中',
+    [UploadStatus.MERGING]: '合并中',
+    [UploadStatus.SUCCESS]: '上传成功',
+    [UploadStatus.ERROR]: '上传失败',
+    [UploadStatus.PAUSED]: '已暂停',
+    [UploadStatus.CANCELLED]: '已取消',
+  }
+  return map[status] || status
+}
+
+const formatSpeed = (bytesPerSecond?: number): string => {
+  if (!bytesPerSecond) return '--'
+  return formatSize(bytesPerSecond) + '/s'
+}
+
+const formatTime = (seconds?: number): string => {
+  if (!seconds || !isFinite(seconds)) return '--'
+  if (seconds < 60) return Math.round(seconds) + '秒'
+  if (seconds < 3600) return Math.round(seconds / 60) + '分钟'
+  return Math.round(seconds / 3600) + '小时'
+}
 </script>
 
 <style lang="scss" scoped>
@@ -278,6 +399,43 @@ $transition: all 0.3s ease;
       background-color: rgba($warning-color, 0.1);
     }
   }
+}
+
+// 补充样式
+.file-meta {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.status-text {
+  color: #409eff;
+}
+
+.progress-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+
+  .el-progress {
+    flex: 1;
+  }
+
+  .progress-text {
+    font-size: 12px;
+    color: #409eff;
+    min-width: 60px;
+    text-align: right;
+  }
+}
+
+.file-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: 16px;
 }
 
 // 动画

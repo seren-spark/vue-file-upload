@@ -2,17 +2,60 @@
 import { UploadFilled } from '@element-plus/icons-vue'
 import { ref } from 'vue'
 import FileList, { type FileItem } from './FileList.vue'
+import { useUpload } from '@/composables/useUpload'
 import axios from 'axios'
-const files = ref<FileItem[]>([
-  { id: 1, name: 'document.pdf', status: 'uploading', progress: 60 },
-  { id: 2, name: 'image.png', status: 'success', size: '2.5 MB' },
-  { id: 3, name: 'video.mp4', status: 'error', error: '文件过大' },
-])
-const handleFileChange = (file: FileItem) => console.log('文件变化', file)
-const handleCancel = (file: FileItem) => console.log('取消', file)
-const handlePreview = (file: FileItem) => console.log('预览', file)
-const handleDelete = (file: FileItem) => console.log('删除', file)
-const handleRetry = (file: FileItem) => console.log('重试', file)
+import { UploadStatus, type UploadFileInfo } from '@/types/upload'
+// const files = ref<FileItem[]>([
+//   { id: 1, name: 'document.pdf', status: 'uploading', progress: 60 },
+//   { id: 2, name: 'image.png', status: 'success', size: '2.5 MB' },
+//   { id: 3, name: 'video.mp4', status: 'error', error: '文件过大' },
+// ])
+
+const { files, addFiles, pause, resume, cancel, retry } = useUpload({
+  chunkSize: 5 * 1024 * 1024, // 5MB
+  maxConcurrent: 3,
+  maxRetries: 3,
+})
+
+const handleFileChange = (uploadFile: { raw: File }) => {
+  console.log(uploadFile.raw, '文件变化')
+  if (uploadFile.raw) {
+    addFiles([uploadFile.raw])
+  }
+}
+const handleCancel = (file: UploadFileInfo) => {
+  console.log('取消', file)
+  if (file.status === UploadStatus.PENDING) {
+    pause(file.id)
+  } else {
+    cancel(file.id)
+  }
+}
+// fileItem 和这个类型 UploadFileInfo 有什么区别
+const handlePreview = (file: UploadFileInfo) => console.log('预览', file)
+const handleDelete = (file: UploadFileInfo) => cancel(file.id as string)
+const handleRetry = (file: UploadFileInfo) => retry(file.id as string)
+//// 转换状态用于 FileList 显示
+// const getDisplayStatus = (status: UploadStatus): 'uploading' | 'success' | 'error' => {
+//   switch (status) {
+//     case UploadStatus.UPLOADING:
+//     case UploadStatus.HASHING:
+//     case UploadStatus.CHECKING:
+//     case UploadStatus.MERGING:
+//       return 'uploading'
+//     case UploadStatus.SUCCESS:
+//       return 'success'
+//     default:
+//       return 'error'
+//   }
+// }
+// // 添加 formatSize 函数
+// const formatSize = (bytes: number): string => {
+//   if (bytes < 1024) return bytes + ' B'
+//   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB'
+//   if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB'
+//   return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
+// }
 </script>
 <template>
   <div class="file-upload">
@@ -48,7 +91,7 @@ const handleRetry = (file: FileItem) => console.log('重试', file)
         <div class="el-upload__tip">支持 jpg、png、pdf 格式，单个文件不超过 10MB</div>
       </template>
     </el-upload>
-    <!-- 文件列表组件 -->
+    <!-- 文件列表组件  :files="files"-->
     <FileList
       class="file-list-wrapper"
       :files="files"
@@ -56,6 +99,8 @@ const handleRetry = (file: FileItem) => console.log('重试', file)
       @preview="handlePreview"
       @delete="handleDelete"
       @retry="handleRetry"
+      @pause="(file) => pause(file.id)"
+      @resume="(file) => resume(file.id)"
     />
   </div>
 </template>

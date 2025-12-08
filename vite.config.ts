@@ -28,4 +28,11 @@ export default defineConfig({
       scss: { api: 'modern-compiler' },
     },
   },
+  worker: {
+    format: 'es',
+    plugins: () => [vue()],
+  },
+  optimizeDeps: {
+    exclude: ['spark-md5'], // Worker 中使用
+  },
 })
