@@ -15,6 +15,7 @@ import {
 } from '@/types/upload'
 import { v4 as uuidv4 } from 'uuid'
 import { WorkerPool } from './workerPool'
+import MD5Worker from './md5.worker.ts?worker'
 const DEFAULT_CONFIG: UploadConfig = {
   chunkSize: 5 * 1024 * 1024, // 5MB
   maxConcurrent: 3,
@@ -34,10 +35,8 @@ export class UploadService {
   constructor(config?: Partial<UploadConfig>, events?: UploadEvents) {
     this.config = { ...DEFAULT_CONFIG, ...config }
     this.events = events || {}
-    this.workerPool = new WorkerPool(
-      new URL('./md5.worker.ts', import.meta.url).href,
-      this.config.workerCount,
-    )
+    // this.workerPool = new WorkerPool(MD5Worker, this.config.workerCount)
+     this.workerPool = new WorkerPool('./md5.worker.ts', this.config.workerCount)
   }
   private generateId(): string {
     return uuidv4() // 生成标准 UUID v4，如：1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed
