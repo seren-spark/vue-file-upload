@@ -82,7 +82,6 @@ const handleRetry = (file: UploadFileInfo) => retry(file.id as string)
       :auto-upload="false"
       :show-file-list="false"
       multiple
-      accept=".jpg,.png,.pdf"
       :on-change="handleFileChange"
     >
       <el-icon class="el-icon--upload"><UploadFilled /></el-icon>

@@ -35,26 +35,18 @@ export class WorkerPool {
   private taskQueue: Task<unknown>[] = [] //等待执行的任务队列
   private activeWorkers = new Map<Worker, Task<unknown>>() //正在执行任务的Woker ->任务映射
   private workerUrl: string //woker 脚本的路径
-  // private workerConstructor: new () => Worker // Worker 构造函数
-  // private workerFactory: () => Worker
+
   constructor(workerUrl: string, poolSize: number = navigator.hardwareConcurrency || 4) {
     this.workerUrl = workerUrl
     this.initWorkers(poolSize)
   }
-  // constructor(
-  //   workerConstructor: new () => Worker,
-  //   poolSize: number = navigator.hardwareConcurrency || 4,
-  // ) {
-  //   this.workerConstructor = workerConstructor
-  //   this.initWorkers(poolSize)
-  // }
+ 
   // 初始化worker
   private initWorkers(size: number) {
     for (let i = 0; i < size; i++) {
       //创建woker 实例
-      // const worker = new this.workerConstructor()
       const worker = new Worker(new URL(this.workerUrl, import.meta.url), { type: 'module' })
-      // const worker = this.workerFactory()
+
 
       //监听woker发来的消息
       worker.onmessage = (e) => {

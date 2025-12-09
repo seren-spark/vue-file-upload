@@ -355,7 +355,25 @@ $transition: all 0.3s ease;
   gap: 8px;
   flex-shrink: 0;
 
-  button {
+  // button {
+  //   display: flex;
+  //   align-items: center;
+  //   justify-content: center;
+  //   width: 28px;
+  //   height: 28px;
+  //   padding: 0;
+  //   border: none;
+  //   border-radius: 6px;
+  //   background-color: transparent;
+  //   cursor: pointer;
+  //   transition: $transition;
+
+  //   svg {
+  //     width: 16px;
+  //     height: 16px;
+  //   }
+  // 只针对直接的 button 元素，不包括 el-button
+  > button:not(.el-button) {
     display: flex;
     align-items: center;
     justify-content: center;

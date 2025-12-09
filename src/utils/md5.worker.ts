@@ -18,13 +18,11 @@ interface WorkerOutput {
     error?: string
   }
 }
-// console.log('Worker 脚本已加载')
 
 self.onmessage = async (e: MessageEvent<WokerInput>) => {
   const { type, fileId, file } = e.data
   console.log('Worker 收到消息:', e.data)
   if (type !== 'calculate') return
-  debugger
   try {
     const spark = new SparkMD5.ArrayBuffer() //创建md5 实例
 

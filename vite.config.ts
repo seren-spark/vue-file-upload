@@ -28,6 +28,13 @@ export default defineConfig({
       scss: { api: 'modern-compiler' },
     },
   },
+  // server: {
+  //   sourcemap: true, // 等价于 build.sourcemap = 'inline'（开发模式）
+  // },
+  // build: {
+  //   sourcemap: true,
+  //   sourcemapIgnoreList: (path) => path.includes('node_modules')
+  // }
   // worker: {
   //   format: 'es',
   //   plugins: () => [vue()],

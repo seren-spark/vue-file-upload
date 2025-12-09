@@ -36,7 +36,7 @@ export class UploadService {
     this.config = { ...DEFAULT_CONFIG, ...config }
     this.events = events || {}
     // this.workerPool = new WorkerPool(MD5Worker, this.config.workerCount)
-     this.workerPool = new WorkerPool('./md5.worker.ts', this.config.workerCount)
+    this.workerPool = new WorkerPool('./md5.worker.ts', this.config.workerCount)
   }
   private generateId(): string {
     return uuidv4() // 生成标准 UUID v4，如：1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed
@@ -140,7 +140,9 @@ export class UploadService {
 
       chunk.status = ChunkStatus.SUCCESS
       chunk.progress = 100
-      fileInfo.uploadedChunks.push(chunk.index)
+      // if (!fileInfo.uploadedChunks.includes(chunk.index)) {
+      //   fileInfo.uploadedChunks.push(chunk.index)
+      // }
       // 保存断点信息
       this.saveProgress(fileInfo)
     } catch (error) {
@@ -211,6 +213,7 @@ export class UploadService {
   private async mergeChunks(fileInfo: UploadFileInfo): Promise<MergeResponse<any>> {
     fileInfo.status = UploadStatus.MERGING
     this.events.onStatusChange?.(fileInfo)
+    console.log('合并中')
 
     const response = await axios.post<MergeResponse<any>>(`${API_BASE}/merge/${fileInfo.md5}`)
     return response.data
@@ -299,47 +302,92 @@ export class UploadService {
       // 2. 检查秒传
       fileInfo.status = UploadStatus.CHECKING
       this.events.onStatusChange?.(fileInfo)
+      console.log('开始调用检测接口')
 
       const checkResult = await this.checkFileExists(fileInfo.md5!)
+      console.log('checkResult', checkResult)
 
-      if (checkResult.data?.exists) {
+      if (checkResult.code == 700) {
         // 秒传成功
         fileInfo.status = UploadStatus.SUCCESS
         fileInfo.progress = 100
         this.clearProgress(fileInfo)
+        this.events.onStatusChange?.(fileInfo)
         this.events.onSuccess?.(fileInfo, checkResult.data.url!)
         return
       }
-
+      // // 3. 尝试从本地恢复断点（如果服务端没有返回）
+      // if (!fileInfo.uploadedChunks.length) {
+      //   this.loadProgress(fileInfo)
+      // }
       // 3. 尝试恢复断点
-      const hasProgress = this.loadProgress(fileInfo)
+      // const hasProgress = this.loadProgress(fileInfo)
 
-      // 4. 初始化上传（获取预签名URL）
-      if (!hasProgress || fileInfo.chunks.some((c) => !c.uploadUrl)) {
-        const initResult = await this.initUpload(fileInfo)
-        // ✅ 保存 uploadId
-        fileInfo.uploadId = initResult.uploadId
-        // 设置上传URL
-        initResult.urlList.forEach((url, index) => {
-          if (fileInfo.chunks[index]) {
-            fileInfo.chunks[index].uploadUrl = url
+      // 4. 初始化上传（获取预签名URL） //只有在没有uploadId 或者缺少上传URL 时才初始化
+      // if (!hasProgress || fileInfo.chunks.some((c) => !c.uploadUrl)) {
+      const initResult = await this.initUpload(fileInfo)
+      console.log('初始化上传结果', initResult)
+
+      // ✅ 保存 uploadId
+
+      fileInfo.uploadId = initResult.uploadId
+      // 4. 根据 urlList 长度判断已上传的分片
+      const totalChunks = fileInfo.chunks.length
+      const remainingChunks = initResult.urlList.length
+      const uploadedCount = totalChunks - remainingChunks
+      console.log('分片统计:', {
+        总分片数: totalChunks,
+        剩余分片数: remainingChunks,
+        已上传分片数: uploadedCount,
+      })
+
+      // 5. 标记前面已上传的分片
+      for (let i = 0; i < uploadedCount; i++) {
+        const chunk = fileInfo.chunks[i]
+        if (chunk) {
+          chunk.status = ChunkStatus.SUCCESS
+          chunk.progress = 100
+          if (!fileInfo.uploadedChunks.includes(i)) {
+            fileInfo.uploadedChunks.push(i)
           }
-        })
-
-        // // 服务端返回的已上传分片
-        // if (initResult.uploadedChunks?.length) {
-        //   initResult.uploadedChunks.forEach((index) => {
-        //     if (!fileInfo.uploadedChunks.includes(index)) {
-        //       fileInfo.uploadedChunks.push(index)
-        //       const chunk = fileInfo.chunks[index]
-        //       if (chunk) {
-        //         chunk.status = ChunkStatus.SUCCESS
-        //         chunk.progress = 100
-        //       }
-        //     }
-        //   })
-        // }
+        }
       }
+      // 6. 为剩余分片设置上传URL
+      // 从 uploadedCount 开始的分片需要上传
+      for (let i = 0; i < remainingChunks; i++) {
+        const chunkIndex = uploadedCount + i
+        if (fileInfo.chunks[chunkIndex]) {
+          fileInfo.chunks[chunkIndex].uploadUrl = initResult.urlList[i]
+        }
+      }
+
+      console.log('分片URL设置完成:', {
+        已上传分片: fileInfo.uploadedChunks,
+        待上传分片: fileInfo.chunks
+          .map((c, i) => ({ index: i, hasUrl: !!c.uploadUrl }))
+          .filter((c) => c.hasUrl),
+      })
+      // // 设置上传URL
+      // initResult.urlList.forEach((url, index) => {
+      //   if (fileInfo.chunks[index]) {
+      //     fileInfo.chunks[index].uploadUrl = url
+      //   }
+      // })
+
+      // 服务端返回的已上传分片
+      // if (initResult.uploadedChunks?.length) {
+      //   initResult.uploadedChunks.forEach((index) => {
+      //     if (!fileInfo.uploadedChunks.includes(index)) {
+      //       fileInfo.uploadedChunks.push(index)
+      //       const chunk = fileInfo.chunks[index]
+      //       if (chunk) {
+      //         chunk.status = ChunkStatus.SUCCESS
+      //         chunk.progress = 100
+      //       }
+      //     }
+      //   })
+      // }
+      // }
 
       // 5. 上传分片
       await this.uploadChunks(fileInfo)
@@ -351,6 +399,8 @@ export class UploadService {
         fileInfo.status = UploadStatus.SUCCESS
         fileInfo.progress = 100
         this.clearProgress(fileInfo)
+        console.log('合并分片蔡成功', mergeResult)
+        this.events.onStatusChange?.(fileInfo)
         this.events.onSuccess?.(fileInfo, mergeResult.data.url!)
       } else {
         throw new Error(mergeResult.message || '合并失败')
@@ -398,6 +448,7 @@ export class UploadService {
         fileInfo.status = UploadStatus.SUCCESS
         fileInfo.progress = 100
         this.clearProgress(fileInfo)
+        this.events.onStatusChange?.(fileInfo)
         this.events.onSuccess?.(fileInfo, mergeResult.data?.url || '')
       } else {
         throw new Error(mergeResult.message || '合并失败')

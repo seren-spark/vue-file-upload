@@ -50,6 +50,8 @@ export function useUpload(config: Partial<UploadConfig> = {}) {
     for (const file of newFiles) {
       const fileInfo = await uploadService.addFile(file)
       files.value.push(fileInfo)
+      // 添加文件到上传列表
+      console.log('添加文件到上传列表此时的file', file)
 
       // 自动开始上传
       uploadService.startUpload(fileInfo)
