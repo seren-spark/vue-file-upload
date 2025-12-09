@@ -35,27 +35,6 @@ const handleCancel = (file: UploadFileInfo) => {
 const handlePreview = (file: UploadFileInfo) => console.log('预览', file)
 const handleDelete = (file: UploadFileInfo) => cancel(file.id as string)
 const handleRetry = (file: UploadFileInfo) => retry(file.id as string)
-//// 转换状态用于 FileList 显示
-// const getDisplayStatus = (status: UploadStatus): 'uploading' | 'success' | 'error' => {
-//   switch (status) {
-//     case UploadStatus.UPLOADING:
-//     case UploadStatus.HASHING:
-//     case UploadStatus.CHECKING:
-//     case UploadStatus.MERGING:
-//       return 'uploading'
-//     case UploadStatus.SUCCESS:
-//       return 'success'
-//     default:
-//       return 'error'
-//   }
-// }
-// // 添加 formatSize 函数
-// const formatSize = (bytes: number): string => {
-//   if (bytes < 1024) return bytes + ' B'
-//   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB'
-//   if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB'
-//   return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
-// }
 </script>
 <template>
   <div class="file-upload">
@@ -87,7 +66,7 @@ const handleRetry = (file: UploadFileInfo) => retry(file.id as string)
       <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
       <div class="el-upload__text">拖拽文件到此处上传 <em>或点击选择文件</em></div>
       <template #tip>
-        <div class="el-upload__tip">支持 jpg、png、pdf 格式，单个文件不超过 10MB</div>
+        <div class="el-upload__tip">支持 任何格式</div>
       </template>
     </el-upload>
     <!-- 文件列表组件  :files="files"-->

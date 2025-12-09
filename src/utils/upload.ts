@@ -316,15 +316,7 @@ export class UploadService {
         this.events.onSuccess?.(fileInfo, checkResult.data.url!)
         return
       }
-      // // 3. 尝试从本地恢复断点（如果服务端没有返回）
-      // if (!fileInfo.uploadedChunks.length) {
-      //   this.loadProgress(fileInfo)
-      // }
-      // 3. 尝试恢复断点
-      // const hasProgress = this.loadProgress(fileInfo)
 
-      // 4. 初始化上传（获取预签名URL） //只有在没有uploadId 或者缺少上传URL 时才初始化
-      // if (!hasProgress || fileInfo.chunks.some((c) => !c.uploadUrl)) {
       const initResult = await this.initUpload(fileInfo)
       console.log('初始化上传结果', initResult)
 
@@ -367,27 +359,6 @@ export class UploadService {
           .map((c, i) => ({ index: i, hasUrl: !!c.uploadUrl }))
           .filter((c) => c.hasUrl),
       })
-      // // 设置上传URL
-      // initResult.urlList.forEach((url, index) => {
-      //   if (fileInfo.chunks[index]) {
-      //     fileInfo.chunks[index].uploadUrl = url
-      //   }
-      // })
-
-      // 服务端返回的已上传分片
-      // if (initResult.uploadedChunks?.length) {
-      //   initResult.uploadedChunks.forEach((index) => {
-      //     if (!fileInfo.uploadedChunks.includes(index)) {
-      //       fileInfo.uploadedChunks.push(index)
-      //       const chunk = fileInfo.chunks[index]
-      //       if (chunk) {
-      //         chunk.status = ChunkStatus.SUCCESS
-      //         chunk.progress = 100
-      //       }
-      //     }
-      //   })
-      // }
-      // }
 
       // 5. 上传分片
       await this.uploadChunks(fileInfo)
