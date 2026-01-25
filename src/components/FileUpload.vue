@@ -3,13 +3,7 @@ import { UploadFilled } from '@element-plus/icons-vue'
 import { ref } from 'vue'
 import FileList, { type FileItem } from './FileList.vue'
 import { useUpload } from '@/composables/useUpload'
-import axios from 'axios'
 import { UploadStatus, type UploadFileInfo } from '@/types/upload'
-// const files = ref<FileItem[]>([
-//   { id: 1, name: 'document.pdf', status: 'uploading', progress: 60 },
-//   { id: 2, name: 'image.png', status: 'success', size: '2.5 MB' },
-//   { id: 3, name: 'video.mp4', status: 'error', error: '文件过大' },
-// ])
 
 const { files, addFiles, pause, resume, cancel, retry } = useUpload({
   chunkSize: 5 * 1024 * 1024, // 5MB
@@ -24,7 +18,6 @@ const handleFileChange = (uploadFile: { raw: File }) => {
   }
 }
 const handleCancel = (file: UploadFileInfo) => {
-  console.log('取消', file)
   if (file.status === UploadStatus.PENDING) {
     pause(file.id)
   } else {

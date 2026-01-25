@@ -24,7 +24,7 @@ const DEFAULT_CONFIG: UploadConfig = {
   timeout: 30000,
   workerCount: navigator.hardwareConcurrency || 4,
 }
-const API_BASE = 'http://1.14.158.107:8080/minio'
+const API_BASE = 'http://47.121.196.50:8000/minio'
 
 export class UploadService {
   private config: UploadConfig
@@ -144,7 +144,7 @@ export class UploadService {
       //   fileInfo.uploadedChunks.push(chunk.index)
       // }
       // 保存断点信息
-      this.saveProgress(fileInfo)
+      // this.saveProgress(fileInfo)
     } catch (error) {
       if (axios.isCancel(error)) {
         chunk.status = ChunkStatus.PENDING
@@ -242,57 +242,6 @@ export class UploadService {
     return new Promise((resolve) => setTimeout(resolve, ms))
   }
 
-  // 保存进度到 localStorage
-  private saveProgress(fileInfo: UploadFileInfo) {
-    const key = `upload_progress_${fileInfo.md5}`
-    const data = {
-      uploadedChunks: fileInfo.uploadedChunks,
-      uploadId: fileInfo.uploadId,
-    }
-    localStorage.setItem(key, JSON.stringify(data))
-  }
-
-  // 恢复进度
-  private loadProgress(fileInfo: UploadFileInfo): boolean {
-    const key = `upload_progress_${fileInfo.md5}`
-    const data = localStorage.getItem(key)
-
-    if (data) {
-      try {
-        const parsed = JSON.parse(data)
-        fileInfo.uploadedChunks = parsed.uploadedChunks || []
-
-        // 恢复已上传分片的状态
-        fileInfo.uploadedChunks.forEach((index) => {
-          const chunk = fileInfo.chunks[index]
-          if (chunk) {
-            chunk.status = ChunkStatus.SUCCESS
-            chunk.progress = 100
-          }
-        })
-
-        // 恢复上传URL
-        parsed.chunks?.forEach((c: { index: number; uploadUrl?: string }) => {
-          const chunk = fileInfo.chunks[c.index]
-          if (chunk) {
-            chunk.uploadUrl = c.uploadUrl
-          }
-        })
-
-        return true
-      } catch {
-        localStorage.removeItem(key)
-      }
-    }
-    return false
-  }
-
-  // 清除进度
-  private clearProgress(fileInfo: UploadFileInfo) {
-    const key = `upload_progress_${fileInfo.md5}`
-    localStorage.removeItem(key)
-  }
-
   // 开始上传
   async startUpload(fileInfo: UploadFileInfo): Promise<void> {
     try {
@@ -311,7 +260,7 @@ export class UploadService {
         // 秒传成功
         fileInfo.status = UploadStatus.SUCCESS
         fileInfo.progress = 100
-        this.clearProgress(fileInfo)
+
         this.events.onStatusChange?.(fileInfo)
         this.events.onSuccess?.(fileInfo, checkResult.data.url!)
         return
@@ -369,8 +318,8 @@ export class UploadService {
       if (mergeResult.code == 700) {
         fileInfo.status = UploadStatus.SUCCESS
         fileInfo.progress = 100
-        this.clearProgress(fileInfo)
-        console.log('合并分片蔡成功', mergeResult)
+
+        console.log('合并分片成功', mergeResult)
         this.events.onStatusChange?.(fileInfo)
         this.events.onSuccess?.(fileInfo, mergeResult.data.url!)
       } else {
@@ -418,7 +367,7 @@ export class UploadService {
       if (mergeResult.code == 700) {
         fileInfo.status = UploadStatus.SUCCESS
         fileInfo.progress = 100
-        this.clearProgress(fileInfo)
+
         this.events.onStatusChange?.(fileInfo)
         this.events.onSuccess?.(fileInfo, mergeResult.data?.url || '')
       } else {
@@ -437,7 +386,7 @@ export class UploadService {
   cancelUpload(fileInfo: UploadFileInfo) {
     fileInfo.abortController?.abort()
     fileInfo.status = UploadStatus.CANCELLED
-    this.clearProgress(fileInfo)
+
     this.uploadQueue.delete(fileInfo.id)
     this.events.onStatusChange?.(fileInfo)
   }

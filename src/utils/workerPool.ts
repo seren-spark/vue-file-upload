@@ -40,13 +40,12 @@ export class WorkerPool {
     this.workerUrl = workerUrl
     this.initWorkers(poolSize)
   }
- 
+
   // 初始化worker
   private initWorkers(size: number) {
     for (let i = 0; i < size; i++) {
       //创建woker 实例
       const worker = new Worker(new URL(this.workerUrl, import.meta.url), { type: 'module' })
-
 
       //监听woker发来的消息
       worker.onmessage = (e) => {
@@ -115,10 +114,10 @@ export class WorkerPool {
         id,
         data,
         resolve: resolve as (value: unknown) => void,
-        reject,
+        reject, //让task 具有promise的特性
         onProgress,
       }
-
+      // 放入任务队列
       this.taskQueue.push(task)
       this.processQueue()
     })

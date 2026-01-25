@@ -4,6 +4,7 @@ import type { UploadFileInfo, UploadConfig, UploadEvents } from '@/types/upload'
 import { UploadStatus } from '@/types/upload'
 
 export function useUpload(config: Partial<UploadConfig> = {}) {
+  //文件信息
   const files = ref<UploadFileInfo[]>([])
   const isUploading = computed(() =>
     files.value.some(

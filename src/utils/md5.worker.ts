@@ -32,18 +32,17 @@ self.onmessage = async (e: MessageEvent<WokerInput>) => {
     const readChunk = (start: number, end: number): Promise<ArrayBuffer> => {
       return new Promise((resolve, reject) => {
         const reader = new FileReader()
-        reader.onload = (e) => resolve(e.target?.result as ArrayBuffer)
+        reader.onload = (e) => resolve(e.target?.result as ArrayBuffer) //文件分片的二进制数据
         reader.onerror = () => reject(new Error('读取文件失败'))
-        reader.readAsArrayBuffer(file.slice(start, end)) //
+        reader.readAsArrayBuffer(file.slice(start, end)) //将切割后的文件分片读取为 ArrayBuffer 类型  然后触发onload
       })
     }
 
     while (currentChunk < totalChunks) {
       const start = currentChunk * CHUNK_SIZE
       const end = Math.min(start + CHUNK_SIZE, file.size)
-      const buffer = await readChunk(start, end)
-      spark.append(buffer)
-
+      const buffer = await readChunk(start, end) //获取分片的二进制数据
+      spark.append(buffer) //将当前分片的二进制数据累加至sparkMd5 中，进行增量式md5 计算
       currentChunk++
 
       // 报告进度
